@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
@@ -7,29 +8,31 @@ manifest_file = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/InfiniumOmni2-5
 #manifest_file = 'TESTMANIFEST.csv'
 
 ##### LOAD MANIFEST CSV #####
-cols = ['SNP', 'Chr', 'MapInfo']
+cols = ['Name', 'Chr', 'MapInfo']
 
-print "Loading manifest file..."
+print "Loading manifest file ..."
 df = pd.read_table(
     manifest_file,
     sep = ',',
     skiprows = range(0,7),
     header = 0,
     usecols = cols,
-    dtype = {'SNP': str, 'Chr': str, 'MapInfo': int}
+    dtype = {'Chr': object}
 )
 
 ##### KEEP ONLY SNPS WITH RS NUMBERS #####
-df = df.drop(df[ df['SNP'].str.contains("rs") == False ].index)
+df = df.drop(df[ df['Name'].str.contains("rs") == False ].index)
 
+print df.head()
 
 ##### SAVE RELEVANT COLUMNS AS A DICTIONARY #####
-manifest_dict = df.set_index('SNP').T.to_dict('list')
+if os.path.isfile( "manifest_dict.pkl" ):
+    command = 'rm manifest_dict.pkl'
+    print 'Removing old manifest_dict.pkl ...'
+    os.system(command)
+#ENDIF
+
+print "Saving manifest as a dictionary ..."
+manifest_dict = df.set_index('Name').T.to_dict('list')
 output = open('manifest_dict.pkl', 'wb')
-
-print "Saving manifest as a dictionary..."
 pickle.dump(manifest_dict, output)
-
-###### READ PICKLE DICTIONARY
-#pkl_file = open('manifest_dict.pkl', 'rb')
-#dict = pickle.load(pkl_file)
