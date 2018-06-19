@@ -1,7 +1,10 @@
+#!/opt/anaconda/anaconda2/bin/python
 import os
 import pandas as pd
 import numpy as np
 import time
+
+TEST = False
 
 DATA_DIR='/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
@@ -23,7 +26,13 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-out_file = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/EA11101_2011-09-28.lgen'
+out_file = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.lgen'
+
+if TEST:
+    files = ['test.txt']
+    out_file = 'EA11101_2011-09-28.lgen'
+
+
 if os.path.isfile( out_file ):
     os.system('rm ' + out_file)
 #ENDIF 
@@ -60,7 +69,7 @@ for f in files:
 
     ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
     rows_before_GCCut = df.shape[0]
-    df = df.drop(df[ df['GC Score'] < GC_thresh ].index)
+    df.drop(df[ df['GC Score'] < GC_thresh ].index, inplace = True)
     rows_after_GCCut = df.shape[0]
     reduction_fraction = 100. * (1. - float(rows_after_GCCut) / float(rows_before_GCCut))
 
@@ -101,6 +110,14 @@ for f in files:
         index = False
     )
 
+
+
+    ##### DELETE DATAFRAME, FREE MEMORY #####
+    del df
+
+
+#ENDFOR
+        
 time_stop = time.time()
 duration = (time_stop - time_start) / 60 / 60
 print "LGEN CREATED!"
