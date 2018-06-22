@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import numpy as np
 import time
+import pickle
+
+time_start = time.time()
 
 TEST = False
 
@@ -26,7 +29,8 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-out_file = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.lgen'
+rsConverter = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
+out_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.lgen'
 
 if TEST:
     files = ['test.txt']
@@ -52,7 +56,16 @@ cols = [
     'Sample Name'
 ]
 
-time_start = time.time()
+
+
+##### LOAD RS CONVERTER DICTIONARY #####
+print "Loading rs converter dictionary at " + rsConverter
+pkl_file = open(rsConverter, 'rb')
+rs_converter_dict = pickle.load(pkl_file)
+
+
+
+##### LOOP OVER FILES ##### 
 for f in files:
 
     ##### LOAD SNP DATA #####
@@ -76,7 +89,7 @@ for f in files:
     print "GC CUT:\t" + str(GC_thresh)
     print "ROWS BEFORE GC CUT:\t" + str( rows_before_GCCut )
     print "ROWS AFTER GC CUT:\t" + str( rows_after_GCCut )
-    print 'DATA REDUCED BY:\t%.0f%%' % reduction_fraction
+    print 'DATA REDUCED BY:\t%.1f%%' % reduction_fraction
     
 
 
@@ -99,7 +112,11 @@ for f in files:
     df = df[ reordered_cols ]
 
 
+    ##### CONVERT NON-RS IDs to RS IDs #####
+    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
 
+
+    
     ##### WRITE THE LGEN FILE #####
     print "Appending " + str(f) + " to lgen file ..."
     df.to_csv(

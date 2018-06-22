@@ -31,6 +31,7 @@ files = [
 
 out_file       = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.map'
 manifest_file  = DATA_DIR + 'PLINK_FILES/manifest_dict_MERGED.pkl'
+rsConverter    = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
 unmatched_file = DATA_DIR + "PLINK_FILES/unmatchedSNPs.txt"
 
 if TEST:
@@ -50,6 +51,13 @@ pkl_file = open(manifest_file, 'rb')
 manifest_dict = pickle.load(pkl_file)
 
 
+
+##### LOAD RS CONVERTER DICTIONARY #####
+print "Loading rs converter dictionary at " + rsConverter
+pkl_file2 = open(rsConverter, 'rb')
+rs_converter_dict = pickle.load(pkl_file2)
+
+
 ##### INITIALIZE THE SNP ARRAY
 all_snps_array = np.array( [] )
 
@@ -66,6 +74,12 @@ for f in files:
         header = 0,
         usecols = [0]
     )
+
+
+
+    ##### CONVERT NON-RS IDs to RS IDs #####
+    print "Converting to rsIDs ..."
+    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
 
 
 

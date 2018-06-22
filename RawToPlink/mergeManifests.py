@@ -10,9 +10,9 @@ if TEST:
     DATA_DIR = "./"
 #ENDIF
 
-manifest1p2 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/HumanOmni25-8v1-2_A1.csv'
-manifest1p3 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/InfiniumOmni2-5-8v1-3_A1.csv'
-manifest1p4 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/InfiniumOmni2-5-8v1-4_A1.csv'
+manifest1p2 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/IlluminaSupportFiles/HumanOmni25-8v1-2_A1.csv'
+manifest1p3 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/IlluminaSupportFiles/InfiniumOmni2-5-8v1-3_A1.csv'
+manifest1p4 = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/IlluminaSupportFiles/InfiniumOmni2-5-8v1-4_A1.csv'
 
 out_file      = DATA_DIR + "manifest_dict_MERGED.pkl"
 
