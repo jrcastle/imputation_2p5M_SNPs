@@ -51,6 +51,9 @@ df = pd.read_table(
 
 print str(df.shape[0]) + " SNPs are in this file"
 
+
+
+##### REMOVE CHROMOSOME NAMES OTHER THAN CHR<#> #####
 print "Remmoving Chromosome names other than \"chr#\" ..."
 nbefore = df.shape[0]
 df.drop(df[ df.Chr.str.contains("_") == True ].index, inplace=True)
@@ -59,9 +62,17 @@ nrm = nbefore-nafter
 print "Removed %.0f SNPs" %(nrm)
 
 
+
+##### REMOVE REMAINING DUPLICATE SNPs IN THE PSEUDOAUTOSOMAL REGION #####
+df2 = df.loc[df.duplicated(["SNP"], keep=False) ]
+df.loc[ df2.loc[df2['Chr'] == 'chrX'].index, 'Chr'] = 'chrXY'
+df.drop( df2.loc[ df2['Chr'] == 'chrY' ].index, inplace=True )
+del df2
+
+
 print "Finding non-unique SNPs ..."
 repeat_snps = df.loc[df.duplicated(["SNP"], keep='first')]['SNP'].unique().tolist()
-repeat_chrs = df.loc[df.duplicated(["SNP"], keep='first')]['Chr'].unique().tolist()
+repeat_chrs = df.loc[df.duplicated(["SNP"], keep=False)]['Chr'].unique().tolist()
 print "%.0f non-unique SNPs found!" % (len(repeat_snps))
 print "SNPs found on the following chromosomes: "
 print repeat_chrs
