@@ -7,7 +7,7 @@ import pickle
 
 time_start = time.time()
 
-TEST = False
+TEST = True
 
 DATA_DIR='/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
@@ -30,16 +30,23 @@ files = [
 ]
 
 rsConverter = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
-out_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.lgen'
+race_file   = DATA_DIR + 'PLINK_FILES/race_dict.csv'
+EUR_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28_EUR.lgen'
+AFR_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28_AFR.lgen'
 
 if TEST:
-    files = ['test.txt']
-    out_file = 'EA11101_2011-09-28.lgen'
+    files    = ['test.txt']
+    EUR_file = 'EA11101_2011-09-28_EUR.lgen'
+    AFR_file = 'EA11101_2011-09-28_AFR.lgen'
 
 
-if os.path.isfile( out_file ):
-    os.system('rm ' + out_file)
+if os.path.isfile( EUR_file ):
+    os.system('rm ' + EUR_file)
 #ENDIF 
+
+if os.path.isfile( AFR_file ):
+    os.system('rm ' + AFR_file)
+#ENDIF
 
 
 ##### GENCALL SCORE CUTOFF
@@ -65,6 +72,22 @@ rs_converter_dict = pickle.load(pkl_file)
 
 
 
+##### LOAD RACE DICTIONARY #####
+print "Loading race dictionary at " + race_file
+df_race = pd.read_table(race_file,
+                        sep = ',',
+                        header = 0,
+                        dtype = {'Sample ID': object, 'Race': object}
+)
+
+race_dict = df_race.set_index('Sample ID').T.to_dict('list')
+
+for key in race_dict.keys():
+    race_dict[key] = race_dict[key][0]
+#ENDFOR
+del df_race
+
+
 ##### LOOP OVER FILES ##### 
 for f in files:
 
@@ -79,7 +102,12 @@ for f in files:
     )
 
 
+    ##### ADD RACE COLUMN #####
+    print "Adding Race column ..."
+    df['Race'] = df['Sample ID'].map(race_dict)
 
+    
+    
     ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
     rows_before_GCCut = df.shape[0]
     df.drop(df[ df['GC Score'] < GC_thresh ].index, inplace = True)
@@ -100,7 +128,31 @@ for f in files:
     )
 
 
+    ##### CONVERT NON-RS IDs to RS IDs #####
+    print "Converting non-rsIDs to rsIDs ..."
+    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
 
+
+    ##### DIVIDE DATAFRAME BY RACE #####
+    print "Splitting dataframe by race ..."
+    df_EUR = df.loc[ df['Race'] == 'White' ]
+    df_AFR = df.loc[ df['Race'] == 'Black or African American' ]
+    del df
+
+    
+    ##### DROP THE RACE COLUMN #####
+    df_EUR.drop("Race",
+                axis = 1,
+                inplace = True
+    )
+
+    df_AFR.drop("Race",
+                axis = 1,
+                inplace = True
+    )
+
+
+    
     ##### REORDER COLUMNS FOR LGEN FORMAT #####
     reordered_cols = [
         'Sample Name',
@@ -109,28 +161,33 @@ for f in files:
         'Allele1 - Top',
         'Allele2 - Top'
     ]
-    df = df[ reordered_cols ]
-
-
-    ##### CONVERT NON-RS IDs to RS IDs #####
-    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
-
-
     
+    df_EUR = df_EUR[ reordered_cols ]
+    df_AFR = df_AFR[ reordered_cols ]
+
+        
     ##### WRITE THE LGEN FILE #####
-    print "Appending " + str(f) + " to lgen file ..."
-    df.to_csv(
-        out_file,
-        mode = 'a',
-        sep = '\t',
-        header = False,
-        index = False
+    print "Appending " + str(f) + " to EUR file ..."
+    df_EUR.to_csv(EUR_file,
+                  mode = 'a',
+                  sep = '\t',
+                  header = False,
+                  index = False
+    )
+
+    print "Appending " + str(f) + " to AFR file ..."
+    df_AFR.to_csv(AFR_file,
+                  mode = 'a',
+                  sep = '\t',
+                  header = False,
+                  index = False
     )
 
 
 
     ##### DELETE DATAFRAME, FREE MEMORY #####
-    del df
+    del df_EUR
+    del df_AFR
 
 
 #ENDFOR

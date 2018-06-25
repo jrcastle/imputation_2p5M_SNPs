@@ -1,4 +1,3 @@
-
 #!/opt/anaconda/anaconda2/bin/python
 import os
 import pandas as pd
@@ -8,8 +7,8 @@ import time
 
 start_time = time.time()
 
-TEST          = False
-DATA_DIR='/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
+TEST = 0
+DATA_DIR = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport1.txt',
     DATA_DIR + 'EA11101_2011-09-28_FinalReport2.txt',
@@ -32,6 +31,7 @@ files = [
 out_file       = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.map'
 manifest_file  = DATA_DIR + 'PLINK_FILES/manifest_dict_MERGED.pkl'
 rsConverter    = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
+GWAS_file      = DATA_DIR + 'PLINK_FILES/GWAS_dict.csv'
 unmatched_file = DATA_DIR + "PLINK_FILES/unmatchedSNPs.txt"
 
 if TEST:
@@ -40,15 +40,25 @@ if TEST:
     unmatched_file = 'unmatchedSNPs.txt'
 
 
-if not os.path.isfile( manifest_file ):
-    print 'Manifest dictionary not found. Make the manifest dictionary file first and then run this script.'
+if not os.path.isfile( GWAS_file ):
+    print 'GWAS dictionary not found. Make the GWAS dictionary file first and then run this script.'
     exit()
 #ENDIF 
 
-##### LOAD MANIFEST DICTIONARY #####
-print "Loading manifest dictionary at " + manifest_file
-pkl_file = open(manifest_file, 'rb')
-manifest_dict = pickle.load(pkl_file)
+
+
+##### LOAD GWAS DICTIONARY #####
+print "Loading GWAS dictionary at " + GWAS_file
+chunksize = 1000000
+GWAS_dict = {}
+
+i = 0
+for chunk in pd.read_table(GWAS_file, sep = ',', header = 0, dtype = {'SNP': object, 'Chr': object, 'BasePairPos': object}, chunksize=chunksize):
+    pct_cpt = 100.*float(i)/149.
+    print "Loading chunk %i \t %.1f%% complete ..." % (i, pct_cpt)
+    GWAS_dict.update(chunk.set_index('SNP').T.to_dict('list'))
+    i = i + 1
+#ENDFOR
 
 
 
@@ -56,6 +66,8 @@ manifest_dict = pickle.load(pkl_file)
 print "Loading rs converter dictionary at " + rsConverter
 pkl_file2 = open(rsConverter, 'rb')
 rs_converter_dict = pickle.load(pkl_file2)
+pkl_file2.close()
+
 
 
 ##### INITIALIZE THE SNP ARRAY
@@ -104,7 +116,7 @@ df = pd.DataFrame(all_snps_array, columns = ["SNP"])
 
 ##### MATCH SNP TO CHROMOSOME AND BP POSITION #####
 print "Matching SNP to chromosome and base-pair position ..."
-df['tmp'] = df['SNP'].map(manifest_dict)
+df['tmp'] = df['SNP'].map(GWAS_dict)
 rows_before = df.shape[0]
 
 

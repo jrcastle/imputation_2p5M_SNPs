@@ -1,50 +1,25 @@
-
 #!/opt/anaconda/anaconda2/bin/python
 import os
 import pandas as pd
 import numpy as np
 import pickle
+import json
 import time
 
 DATA_DIR  = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/'
 GWAS_file = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/snp144.txt'
-out_file  = DATA_DIR + "GWAS_dict.pkl"
+out_file  = DATA_DIR + "GWAS_dict.csv"
 
 
 start_time = time.time()
 
 ##### LOAD GWAS CSV #####
-if False:
-    print "Loading GWAS file ..."
-    df = pd.read_table(
-        GWAS_file,
-        sep = '\t',
-        header = None,
-        names = ['Chr', 'BasePairPos', 'SNP'],
-        usecols = [1,3,4]
-        #nrows = 10 #5000000
-    )
-
-
-
-    ##### STRIP "chr" from CROMOSOME COLUMN #####
-    df['Chr'] = df['Chr'].map( lambda x: x.lstrip('chr') )
-
-                            
-
-    ##### REORDER #####
-    cols = ['SNP', 'Chr', 'BasePairPos']
-    df = df[cols]
-#ENDIF
-
-
-##### FIND NON-UNIQUE SNPS #####
 print "Loading GWAS file ..."
 df = pd.read_table(
     GWAS_file,
     sep = '\t',
     header = None,
-    names = ['Chr', 'BP End', 'SNP'],
+    names = ['Chr', 'BasePairPos', 'SNP'],
     usecols = [1,3,4]
     #nrows = 10
 )
@@ -54,7 +29,7 @@ print str(df.shape[0]) + " SNPs are in this file"
 
 
 ##### REMOVE CHROMOSOME NAMES OTHER THAN CHR<#> #####
-print "Remmoving Chromosome names other than \"chr#\" ..."
+print "Remmoving Chromosome names other than \"chr<#>\" ..."
 nbefore = df.shape[0]
 df.drop(df[ df.Chr.str.contains("_") == True ].index, inplace=True)
 nafter = df.shape[0]
@@ -64,53 +39,55 @@ print "Removed %.0f SNPs" %(nrm)
 
 
 ##### REMOVE REMAINING DUPLICATE SNPs IN THE PSEUDOAUTOSOMAL REGION #####
+print "Removing/reformatting double-counted chromosomes in the pseudoautosomal region ..."
 df2 = df.loc[df.duplicated(["SNP"], keep=False) ]
 df.loc[ df2.loc[df2['Chr'] == 'chrX'].index, 'Chr'] = 'chrXY'
 df.drop( df2.loc[ df2['Chr'] == 'chrY' ].index, inplace=True )
 del df2
 
 
+
+##### CHECK IF THERE ARE ANY NON-UNIQUE SNPs LEFT OVER #####
 print "Finding non-unique SNPs ..."
 repeat_snps = df.loc[df.duplicated(["SNP"], keep='first')]['SNP'].unique().tolist()
-repeat_chrs = df.loc[df.duplicated(["SNP"], keep=False)]['Chr'].unique().tolist()
-print "%.0f non-unique SNPs found!" % (len(repeat_snps))
-print "SNPs found on the following chromosomes: "
-print repeat_chrs
-
-iterations = 10
-if len(repeat_snps) < iterations:
-    iterations = len(repeat_snps)
+if len(repeat_snps) > 0:
+    print "%.0f non-unique SNPs found!" % (len(repeat_snps))
+    exit()
 #ENDIF
 
 
-for i in range(0, iterations):
-    print "Occurances of SNP " + str(repeat_snps[i])
-    print df.loc[ df['SNP'] == str(repeat_snps[i]) ]
-    print "\n\n"
-#ENDFOR
 
-end_time = time.time()
-run_time = (end_time - start_time) / 60
-print "Process completed in %.0f minutes" % (run_time)
+##### CLEAN UP FORMATTING #####
+print "Cleaning up formatting ..."
+df.loc[ df['Chr'] == 'chrM', 'Chr'] = 'chrMT'
+df['Chr'] = df['Chr'].map( lambda x: x.lstrip('chr') )
 
-exit()
+
+
+##### REORDER #####
+print "Reordering columns ..."
+cols = ['SNP', 'Chr', 'BasePairPos']
+df = df[cols]
+
 
 
 ##### SAVE RELEVANT COLUMNS AS A DICTIONARY #####
 if os.path.isfile( out_file ):
     command = 'rm ' + out_file
-    print 'Removing old GWAS_dict.pkl ...'
+    print 'Removing old GWAS_dict.csv ...'
     os.system(command)
 #ENDIF
 
-print "Saving GWAS as a dictionary ..."
-GWAS_dict = df.set_index('SNP').T.to_dict('list')
-output = open(out_file, 'wb')
-pickle.dump(GWAS_dict, output)
+print "Saving GWAS dictionary to " + out_file + " ..."
+df.to_csv(out_file,
+          sep = ',',
+          index = False
+)
 
 end_time = time.time()
-run_time = end_time - start_time
-print "Process completed in %.0f seconds" % (run_time) 
+run_time = (end_time - start_time)/60
+print "Process completed in %.0f minutes" % (run_time) 
+
 
 
 ##### END SCRIPT #####
