@@ -8,7 +8,7 @@ import time
 
 DATA_DIR  = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/'
 GWAS_file = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/snp144.txt'
-out_file  = DATA_DIR + "GWAS_dict.csv"
+out_file  = DATA_DIR + "GWAS_dict.txt"
 
 
 start_time = time.time()
@@ -74,13 +74,13 @@ df = df[cols]
 ##### SAVE RELEVANT COLUMNS AS A DICTIONARY #####
 if os.path.isfile( out_file ):
     command = 'rm ' + out_file
-    print 'Removing old GWAS_dict.csv ...'
+    print 'Removing old GWAS_dict.txt ...'
     os.system(command)
 #ENDIF
 
 print "Saving GWAS dictionary to " + out_file + " ..."
 df.to_csv(out_file,
-          sep = ',',
+          sep = '\t',
           index = False
 )
 

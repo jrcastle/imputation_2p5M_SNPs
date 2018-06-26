@@ -7,7 +7,7 @@ import pickle
 
 time_start = time.time()
 
-TEST = True
+TEST = 0
 
 DATA_DIR='/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
@@ -31,14 +31,19 @@ files = [
 
 rsConverter = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
 race_file   = DATA_DIR + 'PLINK_FILES/race_dict.csv'
-EUR_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28_EUR.lgen'
-AFR_file    = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28_AFR.lgen'
+EUR_file    = DATA_DIR + 'PLINK_FILES/EUR_EA11101_2011-09-28.lgen'
+AFR_file    = DATA_DIR + 'PLINK_FILES/AFR_EA11101_2011-09-28.lgen'
+ASN_file    = DATA_DIR + 'PLINK_FILES/ASN_EA11101_2011-09-28.lgen'
+OTR_file    = DATA_DIR + 'PLINK_FILES/OTR_EA11101_2011-09-28.lgen'
+
 
 if TEST:
     files    = ['test.txt']
-    EUR_file = 'EA11101_2011-09-28_EUR.lgen'
-    AFR_file = 'EA11101_2011-09-28_AFR.lgen'
-
+    EUR_file = 'EUR_EA11101_2011-09-28.lgen'
+    AFR_file = 'AFR_EA11101_2011-09-28.lgen'
+    ASN_file = 'ASN_EA11101_2011-09-28.lgen'
+    OTR_file = 'OTR_EA11101_2011-09-28.lgen'
+#ENDIF
 
 if os.path.isfile( EUR_file ):
     os.system('rm ' + EUR_file)
@@ -47,6 +52,14 @@ if os.path.isfile( EUR_file ):
 if os.path.isfile( AFR_file ):
     os.system('rm ' + AFR_file)
 #ENDIF
+
+if os.path.isfile( ASN_file ):
+    os.system('rm ' + ASN_file)
+#ENDIF
+
+if os.path.isfile( OTR_file ):
+    os.system('rm ' + OTR_file)
+#ENDIF 
 
 
 ##### GENCALL SCORE CUTOFF
@@ -81,11 +94,12 @@ df_race = pd.read_table(race_file,
 )
 
 race_dict = df_race.set_index('Sample ID').T.to_dict('list')
+del df_race
 
 for key in race_dict.keys():
     race_dict[key] = race_dict[key][0]
 #ENDFOR
-del df_race
+
 
 
 ##### LOOP OVER FILES ##### 
@@ -105,7 +119,8 @@ for f in files:
     ##### ADD RACE COLUMN #####
     print "Adding Race column ..."
     df['Race'] = df['Sample ID'].map(race_dict)
-
+    print "A race could not be found for the following Sample IDs:"
+    print df['Sample ID'].loc[ df['Race'].isna() ].unique().tolist()
     
     
     ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
@@ -137,6 +152,8 @@ for f in files:
     print "Splitting dataframe by race ..."
     df_EUR = df.loc[ df['Race'] == 'White' ]
     df_AFR = df.loc[ df['Race'] == 'Black or African American' ]
+    df_ASN = df.loc[ df['Race'] == 'Asian' ]
+    df_OTR = df.loc[ (df['Race'] != 'Black or African American') & (df['Race'] != 'White') & (df['Race'] != 'Asian') ]
     del df
 
     
@@ -151,7 +168,15 @@ for f in files:
                 inplace = True
     )
 
+    df_ASN.drop("Race",
+		axis = 1,
+                inplace = True
+    )
 
+    df_OTR.drop("Race",
+		axis = 1,
+                inplace = True
+    )
     
     ##### REORDER COLUMNS FOR LGEN FORMAT #####
     reordered_cols = [
@@ -164,7 +189,8 @@ for f in files:
     
     df_EUR = df_EUR[ reordered_cols ]
     df_AFR = df_AFR[ reordered_cols ]
-
+    df_ASN = df_ASN[ reordered_cols ]
+    df_OTR = df_OTR[ reordered_cols ]
         
     ##### WRITE THE LGEN FILE #####
     print "Appending " + str(f) + " to EUR file ..."
@@ -183,12 +209,27 @@ for f in files:
                   index = False
     )
 
+    print "Appending " + str(f) + " to ASN file ..."
+    df_ASN.to_csv(ASN_file,
+                  mode = 'a',
+                  sep = '\t',
+                  header = False,
+                  index = False
+    )
 
+    print "Appending " + str(f) + " to OTR file ..."
+    df_OTR.to_csv(OTR_file,
+                  mode = 'a',
+                  sep = '\t',
+                  header = False,
+                  index = False
+    )
 
     ##### DELETE DATAFRAME, FREE MEMORY #####
     del df_EUR
     del df_AFR
-
+    del df_ASN
+    del df_OTR
 
 #ENDFOR
         
