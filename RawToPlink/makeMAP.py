@@ -49,15 +49,15 @@ if not os.path.isfile( GWAS_file ):
 
 ##### LOAD GWAS DICTIONARY #####
 print "Loading GWAS dictionary at " + GWAS_file
-chunksize = 1000000
+chunksize = 500000
 GWAS_dict = {}
 
 i = 0
 for chunk in pd.read_table(GWAS_file, sep = '\t', header = 0, dtype = {'SNP': object, 'Chr': np.dtype('S2'), 'BasePairPos': np.uint32}, chunksize=chunksize):
-    pct_cpt = 100.*float(i)/149.
-    print "Loading chunk %i \t %.1f%% complete ..." % (i, pct_cpt)
-    print chunk.info(memory_usage='deep')
-    exit()
+    pct_cpt = 100.*float(i)/298.
+    if i % 10 == 0:
+        print "Loading chunk %i \t %.1f%% complete ..." % (i, pct_cpt)
+    #ENDIF
     GWAS_dict.update(chunk.set_index('SNP').T.to_dict('list'))
     i = i + 1
 #ENDFOR
@@ -109,7 +109,7 @@ for f in files:
         
 #ENDFOR
 
-
+del rs_converter_dict
 
 ##### CREATE NEW DATAFRAME WITH UNIQUE SNPS
 df_snps = pd.DataFrame(all_snps_array, columns = ["SNP"])
@@ -126,8 +126,7 @@ rows_before = df.shape[0]
 
 ##### FIND UNMATCHED SNPS #####
 print "Finding unmatched SNPs"
-df2 = df_snps[df_snps['tmp'].isnull()]
-df2 = df2[['SNP']]
+df2 = df_snps.loc[ df_snps['tmp'].isnull(), 'SNP' ]
 
 df_snps.dropna(inplace=True)
 rows_after = df_snps.shape[0]
@@ -144,6 +143,7 @@ del df2
 
 
 ##### SPLIT THE DICTIONARY MAPPING INTO TWO COLUMNS #####
+print "Splitting the dictionary mapping into two columns ..." 
 df_snps[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps.tmp.values.tolist(), index= df_snps.index)
 
 df_snps.drop("tmp",
