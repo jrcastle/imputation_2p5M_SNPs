@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import pickle
 import time
+from guppy import hpy
+hp = hpy()
 
 start_time = time.time()
 
@@ -103,11 +105,11 @@ del all_snps_array
 
 ##### LOAD GWAS DICTIONARY #####
 print "Loading GWAS dictionary in chunks at " + GWAS_file
-df_final = pd.DataFrame()
+df_final = []
 chunksize = 500000
 i = 0
 
-for chunk in pd.read_table(GWAS_file, sep = '\t', header = 0, dtype = {'SNP': object, 'Chr': np.dtype('S2'), 'BasePairPos': np.uint32}, chunksize=chunksize, nrows=10):
+for chunk in pd.read_table(GWAS_file, sep = '\t', header = 0, dtype = {'SNP': object, 'Chr': np.dtype('S2'), 'BasePairPos': np.uint32}, chunksize=chunksize):
     pct_cpt = 100.*float(i)/298.
     if i % 10 == 0:
         print "Processing chunk %i \t %.1f%% complete ..." % (i, pct_cpt)
@@ -129,21 +131,30 @@ for chunk in pd.read_table(GWAS_file, sep = '\t', header = 0, dtype = {'SNP': ob
 
 
     ##### SPLIT THE DICTIONARY MAPPING INTO TWO COLUMNS #####
-    df_matched['GeneticDist'] = 0
-    df_matched[['Chromosome','BasePairPos']] = pd.DataFrame(df_matched.tmp.values.tolist(), index = df_matched.index)
-    df_matched.drop("tmp",
-                 axis = 1,
-                 inplace = True
-    )
+    if not df_matched.empty:
+        df_matched[['Chromosome','BasePairPos']] = pd.DataFrame(df_matched.tmp.values.tolist(), index = df_matched.index)
+        df_matched.drop("tmp",
+                        axis = 1,
+                        inplace = True
+        )
 
 
 
-    ##### CONCAT df_matched TO df_final #####
-    df_final = pd.concat( [df_final, df_matched], ignore_index = True)
-    i = i + 1
+        ##### APPEND df_matched TO df_final LIST #####
+        df_final.append(df_matched)
+        i = i + 1
+    #ENDIF
 #ENDFOR
 
 
+
+##### CONCAT CHUNKS #####
+print "Memory usage before merging chunks:"
+print hp.heap()
+print "\n"
+print "Concatinating chunks ..."
+df_final = pd.concat(df_final, ignore_index = True)
+df_final['GeneticDist'] = 0
 
 ##### DETERMINE UNMATCHED SNPS #####
 print "Finding unmatched SNPs ..."
@@ -187,3 +198,5 @@ df_final.to_csv(
 end_time = time.time()
 run_time = (end_time - start_time) / 60 / 60
 print "Process completed in %.1f hours" % (run_time)
+#run_time = (end_time - start_time)
+#print "Process completed in %.1f seconds" % (run_time)
