@@ -1,1 +1,0 @@
-/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/OTR/convert_files.sh
