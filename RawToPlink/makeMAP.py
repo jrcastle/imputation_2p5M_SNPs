@@ -8,7 +8,7 @@ import time
 start_time = time.time()
 
 TEST = 0
-DATA_DIR = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
+DATA_DIR = '/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport1.txt',
     DATA_DIR + 'EA11101_2011-09-28_FinalReport2.txt',
@@ -29,46 +29,27 @@ files = [
 ]
 
 out_file       = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.map'
-manifest_file  = DATA_DIR + 'PLINK_FILES/manifest_dict_MERGED.pkl'
-rsConverter    = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
-GWAS_file      = DATA_DIR + 'PLINK_FILES/GWAS_dict.txt'
+manifest_file  = DATA_DIR + 'PLINK_FILES/manifest_dict.txt'
 unmatched_file = DATA_DIR + "PLINK_FILES/unmatchedSNPs.txt"
 
 if TEST:
-    files          = ['test.txt', 'test2.txt']
+    files          = ['test.txt']
     out_file       = 'EA11101_2011-09-28.map'
     unmatched_file = 'unmatchedSNPs.txt'
 
 
-if not os.path.isfile( GWAS_file ):
-    print 'GWAS dictionary not found. Make the GWAS dictionary file first and then run this script.'
-    exit()
-#ENDIF 
 
+##### LOAD MANIFEST DICTIONARY #####
+print "Loading Manifest Dictionary at " + manifest_file
+manifest_df = pd.read_table(
+    manifest_file,
+    sep = '\t',
+    header = 0,
+    dtype = {'Chr': object, 'MapInfo': int}
+)
 
-
-##### LOAD GWAS DICTIONARY #####
-print "Loading GWAS dictionary at " + GWAS_file
-chunksize = 500000
-GWAS_dict = {}
-
-i = 0
-for chunk in pd.read_table(GWAS_file, sep = '\t', header = 0, dtype = {'SNP': object, 'Chr': np.dtype('S2'), 'BasePairPos': np.uint32}, chunksize=chunksize):
-    pct_cpt = 100.*float(i)/298.
-    if i % 10 == 0:
-        print "Loading chunk %i \t %.1f%% complete ..." % (i, pct_cpt)
-    #ENDIF
-    GWAS_dict.update(chunk.set_index('SNP').T.to_dict('list'))
-    i = i + 1
-#ENDFOR
-
-
-
-##### LOAD RS CONVERTER DICTIONARY #####
-print "Loading rs converter dictionary at " + rsConverter
-pkl_file2 = open(rsConverter, 'rb')
-rs_converter_dict = pickle.load(pkl_file2)
-pkl_file2.close()
+manifest_dict = manifest_df.set_index('Name').T.to_dict('list')
+del manifest_df
 
 
 
@@ -91,16 +72,11 @@ for f in files:
 
 
 
-    ##### CONVERT NON-RS IDs to RS IDs #####
-    print "Converting to rsIDs ..."
-    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
-
-
-
     ##### GET UNIQUE SNPS #####
     print "Getting list of unique SNPs ..."
     snp_list = df['SNP Name'].unique()
     all_snps_array = np.union1d(all_snps_array, snp_list)
+
 
 
     ##### FREE MEMORY #####
@@ -109,18 +85,18 @@ for f in files:
         
 #ENDFOR
 
-del rs_converter_dict
+
 
 ##### CREATE NEW DATAFRAME WITH UNIQUE SNPS
 df_snps = pd.DataFrame(all_snps_array, columns = ["SNP"])
 del all_snps_array
 
 
+
 ##### MATCH SNP TO CHROMOSOME AND BP POSITION #####
 print "Matching SNP to chromosome and base-pair position ..."
-df_snps['tmp'] = df_snps['SNP'].map(GWAS_dict)
-del GWAS_dict
-rows_before = df.shape[0]
+df_snps['tmp'] = df_snps['SNP'].map(manifest_dict)
+rows_before = df_snps.shape[0]
 
 
 

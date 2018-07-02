@@ -1,4 +1,4 @@
-#!/opt/anaconda/anaconda2/bin/python
+#!/home/jrca253/anaconda2/bin/python
 import os
 import pandas as pd
 import numpy as np
@@ -9,7 +9,7 @@ time_start = time.time()
 
 TEST = 0
 
-DATA_DIR='/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/'
+DATA_DIR='/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport1.txt',
     DATA_DIR + 'EA11101_2011-09-28_FinalReport2.txt',
@@ -29,12 +29,12 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-rsConverter = DATA_DIR + 'PLINK_FILES/rsConverterDict.pkl'
-race_file   = DATA_DIR + 'PLINK_FILES/race_dict.csv'
-EUR_file    = DATA_DIR + 'PLINK_FILES/EUR_EA11101_2011-09-28.lgen'
-AFR_file    = DATA_DIR + 'PLINK_FILES/AFR_EA11101_2011-09-28.lgen'
-ASN_file    = DATA_DIR + 'PLINK_FILES/ASN_EA11101_2011-09-28.lgen'
-OTR_file    = DATA_DIR + 'PLINK_FILES/OTR_EA11101_2011-09-28.lgen'
+race_file      = DATA_DIR + 'PLINK_FILES/race_dict.csv'
+unmatched_file = DATA_DIR + 'PLINK_FILES/unmatchedSNPs.txt'
+EUR_file       = DATA_DIR + 'PLINK_FILES/EUR_EA11101_2011-09-28.lgen'
+AFR_file       = DATA_DIR + 'PLINK_FILES/AFR_EA11101_2011-09-28.lgen'
+ASN_file       = DATA_DIR + 'PLINK_FILES/ASN_EA11101_2011-09-28.lgen'
+OTR_file       = DATA_DIR + 'PLINK_FILES/OTR_EA11101_2011-09-28.lgen'
 
 
 if TEST:
@@ -70,18 +70,11 @@ GC_thresh = 0.15
 cols = [
     'SNP Name',
     'Sample ID',
-    'Allele1 - Top',
-    'Allele2 - Top',
+    'Allele1 - Forward',
+    'Allele2 - Forward',
     'GC Score',
     'Sample Name'
 ]
-
-
-
-##### LOAD RS CONVERTER DICTIONARY #####
-print "Loading rs converter dictionary at " + rsConverter
-pkl_file = open(rsConverter, 'rb')
-rs_converter_dict = pickle.load(pkl_file)
 
 
 
@@ -102,6 +95,17 @@ for key in race_dict.keys():
 
 
 
+##### LOAD UNMATCHED SNPs #####
+print "Loading list of unmatched SNPs ..."
+unmatched_df = pd.read_table(
+    unmatched_file,
+    sep = '\t',
+    header = None,
+    names = ['SNP']
+)
+
+
+
 ##### LOOP OVER FILES ##### 
 for f in files:
 
@@ -116,12 +120,25 @@ for f in files:
     )
 
 
+
+    ##### DROP SNPs THAT DON'T MATCH TO THE MANIFEST FILE ##### 
+    df.drop( df.loc[ df['SNP Name'].isin( unmatched_df['SNP'] ) ].index, inplace=True )
+
+
+
+    ##### DROP SNPs THAT ONLY HAVE 1 ALLELE #####
+    df.drop( df.loc[ df['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df.drop( df.loc[ df['Allele2 - Forward'] == "-" ].index, inplace=True )
+
+
+
     ##### ADD RACE COLUMN #####
     print "Adding Race column ..."
     df['Race'] = df['Sample ID'].map(race_dict)
     print "A race could not be found for the following Sample IDs:"
     print df['Sample ID'].loc[ df['Race'].isna() ].unique().tolist()
     
+
     
     ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
     rows_before_GCCut = df.shape[0]
@@ -143,10 +160,6 @@ for f in files:
     )
 
 
-    ##### CONVERT NON-RS IDs to RS IDs #####
-    print "Converting non-rsIDs to rsIDs ..."
-    df['SNP Name'] = df['SNP Name'].map(rs_converter_dict).fillna(df['SNP Name'])
-
 
     ##### DIVIDE DATAFRAME BY RACE #####
     print "Splitting dataframe by race ..."
@@ -155,6 +168,7 @@ for f in files:
     df_ASN = df.loc[ df['Race'] == 'Asian' ]
     df_OTR = df.loc[ (df['Race'] != 'Black or African American') & (df['Race'] != 'White') & (df['Race'] != 'Asian') ]
     del df
+
 
     
     ##### DROP THE RACE COLUMN #####
@@ -183,8 +197,8 @@ for f in files:
         'Sample Name',
         'Sample ID',
         'SNP Name',
-        'Allele1 - Top',
-        'Allele2 - Top'
+        'Allele1 - Forward',
+        'Allele2 - Forward'
     ]
     
     df_EUR = df_EUR[ reordered_cols ]

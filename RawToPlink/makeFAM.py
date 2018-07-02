@@ -1,10 +1,9 @@
 #!/opt/anaconda/anaconda2/bin/python
 import pandas as pd
 
-
-DATA_DIR       = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/'
+sample_QC_file = '/home/jrca253/DATA/EA11101_2011-09-28_ArrayQC.csv'
+DATA_DIR       = '/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/'
 race_file      = DATA_DIR + 'race_dict.csv'
-sample_QC_file = '/mnt/DATA/EA11101_2011-09-28/EA11101_2011-09-28_ArrayQC.csv'
 EUR_file       = DATA_DIR + 'EUR_EA11101_2011-09-28.fam'
 AFR_file       = DATA_DIR + 'AFR_EA11101_2011-09-28.fam'
 ASN_file       = DATA_DIR + 'ASN_EA11101_2011-09-28.fam'
