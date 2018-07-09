@@ -70,8 +70,8 @@ GC_thresh = 0.15
 cols = [
     'SNP Name',
     'Sample ID',
-    'Allele1 - Top',
-    'Allele2 - Top',
+    'Allele1 - Forward',
+    'Allele2 - Forward',
     'GC Score',
     'Sample Name'
 ]
@@ -127,8 +127,8 @@ for f in files:
 
 
     ##### DROP SNPs THAT ONLY HAVE 1 ALLELE #####
-    df.drop( df.loc[ df['Allele1 - Top'] == "-" ].index, inplace=True )
-    df.drop( df.loc[ df['Allele2 - Top'] == "-" ].index, inplace=True )
+    df.drop( df.loc[ df['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df.drop( df.loc[ df['Allele2 - Forward'] == "-" ].index, inplace=True )
 
 
 
@@ -197,8 +197,8 @@ for f in files:
         'Sample Name',
         'Sample ID',
         'SNP Name',
-        'Allele1 - Top',
-        'Allele2 - Top'
+        'Allele1 - Forward',
+        'Allele2 - Forward'
     ]
     
     df_EUR = df_EUR[ reordered_cols ]

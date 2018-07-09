@@ -2,12 +2,11 @@
 import os
 import pandas as pd
 import numpy as np
-import pickle
 import time
 
 start_time = time.time()
 
-TEST = 0
+TEST = 1
 DATA_DIR = '/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport1.txt',
@@ -28,33 +27,135 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-out_file       = DATA_DIR + 'PLINK_FILES/EA11101_2011-09-28.map'
-manifest_file  = DATA_DIR + 'PLINK_FILES/manifest_dict.txt'
-unmatched_file = DATA_DIR + "PLINK_FILES/unmatchedSNPs.txt"
+##### DICTIONARY FILES #####
+race_file       = DATA_DIR + 'PLINK_FILES/race_dict.csv'
+annotation_file = DATA_DIR + 'PLINK_FILES/' 
+locus_file      = DATA_DIR + 'PLINK_FILES/locus_dict.txt'
+
+
+
+##### FILES NOTING SNPs TO BE REMOVED #####
+snp_file_EUR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_EUR.txt'
+snp_file_AFR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_AFR.txt'
+snp_file_ASN = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_ASN.txt'
+snp_file_OTR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_OTR.txt'
+
+
+
+##### FINAL MAP FILES #####
+EUR_file = DATA_DIR + 'PLINK_FILES/EUR_EA11101_2011-09-28.map'
+AFR_file = DATA_DIR + 'PLINK_FILES/AFR_EA11101_2011-09-28.map'
+ASN_file = DATA_DIR + 'PLINK_FILES/ASN_EA11101_2011-09-28.map'
+OTR_file = DATA_DIR + 'PLINK_FILES/OTR_EA11101_2011-09-28.map'
+
+
 
 if TEST:
     files          = ['test.txt']
-    out_file       = 'EA11101_2011-09-28.map'
-    unmatched_file = 'unmatchedSNPs.txt'
+
+    snp_file_EUR = 'snps_to_be_removed_EUR.txt'
+    snp_file_AFR = 'snps_to_be_removed_AFR.txt'
+    snp_file_ASN = 'snps_to_be_removed_ASN.txt'
+    snp_file_OTR = 'snps_to_be_removed_OTR.txt'
+
+    EUR_file     = 'EUR_EA11101_2011-09-28.map'
+    AFR_file     = 'AFR_EA11101_2011-09-28.map'
+    ASN_file     = 'ASN_EA11101_2011-09-28.map'
+    OTR_file     = 'OTR_EA11101_2011-09-28.map'
+#ENDIF
 
 
 
-##### LOAD MANIFEST DICTIONARY #####
-print "Loading Manifest Dictionary at " + manifest_file
-manifest_df = pd.read_table(
-    manifest_file,
-    sep = '\t',
-    header = 0,
-    dtype = {'Chr': object, 'MapInfo': int}
+##### REMOVE OLD FILES #####
+if os.path.isfile( EUR_file ):
+    os.system('rm ' + EUR_file)
+#ENDIF
+
+if os.path.isfile( AFR_file ):
+    os.system('rm ' + AFR_file)
+#ENDIF
+
+if os.path.isfile( ASN_file ):
+    os.system('rm ' + ASN_file)
+#ENDIF
+
+if os.path.isfile( OTR_file ):
+    os.system('rm ' + OTR_file)
+#ENDIF
+
+if os.path.isfile( snp_file_EUR ):
+    os.system('rm ' + snp_file_EUR)
+#ENDIF 
+
+if os.path.isfile( snp_file_AFR ):
+    os.system('rm ' + snp_file_AFR)
+#ENDIF
+
+if os.path.isfile( snp_file_ASN ):
+    os.system('rm ' + snp_file_ASN)
+#ENDIF  
+
+if os.path.isfile( snp_file_OTR ):
+    os.system('rm ' + snp_file_OTR)
+#ENDIF  
+
+
+
+##### LOAD RACE DICTIONARY #####
+print "Loading race dictionary at " + race_file
+df_race = pd.read_table(race_file,
+                        sep = ',',
+                        header = 0,
+                        dtype = {'Sample ID': object, 'Race': object}
 )
 
-manifest_dict = manifest_df.set_index('Name').T.to_dict('list')
-del manifest_df
+race_dict = df_race.set_index('Sample ID').T.to_dict('list')
+del df_race
+
+for key in race_dict.keys():
+    race_dict[key] = race_dict[key][0]
+#ENDFOR
 
 
 
-##### INITIALIZE THE SNP ARRAY
-all_snps_array = np.array( [] )
+##### LOAD ANNOTATION DICTIONARY #####
+print "Loading annotation dictionary at " + annotation_file 
+# TODO!
+
+
+
+##### LOAD LOCUS REPORT DICTIONARY #####
+print "Loading locus report at " + locus_file
+df_locus = pd.read_table(
+    locus_file,
+    sep = '\t',
+    header = 0,
+    dtype = {
+        'Name': object,
+        'Chr': object,
+        'Position': int,
+        'Call Freq': float,
+        'Minor Freq': float
+        }
+)
+
+locus_dict = df_locus.set_index('Name').T.to_dict('list')
+del df_locus
+
+
+##### INITIALIZE THE SNP ARRAY #####
+all_snps_array_EUR = np.array( [] )
+all_snps_array_AFR = np.array( [] )
+all_snps_array_ASN = np.array( [] )
+all_snps_array_OTR = np.array( [] )
+
+
+
+##### DESIRED COLUMNS #####
+cols = [
+    'SNP Name',
+    'Sample ID'
+]
 
 
 
@@ -67,74 +168,232 @@ for f in files:
         sep = '\t',
         skiprows = range(0,10),
         header = 0,
-        usecols = [0]
+        usecols = cols
     )
+
+
+
+    ##### ADD RACE COLUMN ##### 
+    print "Adding Race column ..."
+    df['Race'] = df['Sample ID'].map(race_dict)
+    print "A race could not be found for the following Sample IDs:"
+    print df['Sample ID'].loc[ df['Race'].isna() ].unique().tolist()
+
+
+
+    ##### DIVIDE DATAFRAME BY RACE #####
+    print "Splitting dataframe by race ..."
+    df_EUR = df.loc[ df['Race'] == 'White' ]
+    df_AFR = df.loc[ df['Race'] == 'Black or African American' ]
+    df_ASN = df.loc[ df['Race'] == 'Asian' ]
+    df_OTR = df.loc[ (df['Race'] != 'Black or African American') & (df['Race'] != 'White') & (df['Race'] != 'Asian') ]
+    del df
 
 
 
     ##### GET UNIQUE SNPS #####
     print "Getting list of unique SNPs ..."
-    snp_list = df['SNP Name'].unique()
-    all_snps_array = np.union1d(all_snps_array, snp_list)
+    snp_list_EUR = df_EUR['SNP Name'].unique()
+    snp_list_AFR = df_AFR['SNP Name'].unique()
+    snp_list_ASN = df_ASN['SNP Name'].unique()
+    snp_list_OTR = df_OTR['SNP Name'].unique()
+
+    all_snps_array_EUR = np.union1d(all_snps_array_EUR, snp_list_EUR)
+    all_snps_array_AFR = np.union1d(all_snps_array_AFR, snp_list_AFR)
+    all_snps_array_ASN = np.union1d(all_snps_array_ASN, snp_list_ASN)
+    all_snps_array_OTR = np.union1d(all_snps_array_OTR, snp_list_OTR)
 
 
 
     ##### FREE MEMORY #####
-    del df
-    del snp_list
-        
+    del df_EUR
+    del df_AFR
+    del df_ASN
+    del df_OTR
+
+    del snp_list_EUR
+    del snp_list_AFR
+    del snp_list_ASN
+    del snp_list_OTR
 #ENDFOR
 
 
 
 ##### CREATE NEW DATAFRAME WITH UNIQUE SNPS
-df_snps = pd.DataFrame(all_snps_array, columns = ["SNP"])
-del all_snps_array
+df_snps_EUR = pd.DataFrame(all_snps_array_EUR, columns = ["SNP"])
+df_snps_AFR = pd.DataFrame(all_snps_array_AFR, columns = ["SNP"])
+df_snps_ASN = pd.DataFrame(all_snps_array_ASN, columns = ["SNP"])
+df_snps_OTR = pd.DataFrame(all_snps_array_OTR, columns = ["SNP"])
+
+del all_snps_array_EUR
+del all_snps_array_AFR
+del all_snps_array_ASN
+del all_snps_array_OTR
 
 
 
-##### MATCH SNP TO CHROMOSOME AND BP POSITION #####
+##### COUNT STARTING SNPs #####
+start_snps_EUR = df_snps_EUR.shape[0]
+start_snps_AFR = df_snps_AFR.shape[0]
+start_snps_ASN = df_snps_ASN.shape[0]
+start_snps_OTR = df_snps_OTR.shape[0]
+
+
+
+##### MATCH SNP TO CHROMOSOME, BP POSITION, MAF, AND CALL RATE #####
 print "Matching SNP to chromosome and base-pair position ..."
-df_snps['tmp'] = df_snps['SNP'].map(manifest_dict)
-rows_before = df_snps.shape[0]
+df_snps_EUR['tmp'] = df_snps_EUR['SNP'].map(locus_dict)
+df_snps_AFR['tmp'] = df_snps_AFR['SNP'].map(locus_dict)
+df_snps_ASN['tmp'] = df_snps_ASN['SNP'].map(locus_dict)
+df_snps_OTR['tmp'] = df_snps_OTR['SNP'].map(locus_dict)
 
 
 
 ##### FIND UNMATCHED SNPS #####
-print "Finding unmatched SNPs"
-df2 = df_snps.loc[ df_snps['tmp'].isnull(), 'SNP' ]
+print "Finding unmatched EUR SNPs"
+df_tmp = df_snps_EUR.loc[ df_snps_EUR['tmp'].isnull(), 'SNP' ]
+unmatched_EUR = df_tmp.shape[0]
+df_snps_EUR.dropna(inplace=True)
 
-df_snps.dropna(inplace=True)
-rows_after = df_snps.shape[0]
-print "%.0f SNPS ARE UNMATCHED!" % (rows_before - rows_after)
-
-print "List of Unmatched SNPs saved in " + unmatched_file
-df2.to_csv(
-    unmatched_file,
+print "List of Unmatched EUR SNPs appended to " + snp_file_EUR
+df_tmp.to_csv(
+    snp_file_EUR,
+    mode = 'a',
     sep = '\t',
     header = False,
     index = False
 )
-del df2
 
 
-##### SPLIT THE DICTIONARY MAPPING INTO TWO COLUMNS #####
-print "Splitting the dictionary mapping into two columns ..." 
-df_snps[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps.tmp.values.tolist(), index= df_snps.index)
+print "Finding unmatched AFR SNPs"
+df_tmp = df_snps_AFR.loc[ df_snps_AFR['tmp'].isnull(), 'SNP' ]
+unmatched_AFR = df_tmp.shape[0]
+df_snps_AFR.dropna(inplace=True)
 
-df_snps.drop("tmp",
-        axis = 1,
-        inplace = True
+print "List of Unmatched AFR SNPs appended to " + snp_file_AFR
+df_tmp.to_csv(
+    snp_file_AFR,
+    mode = 'a',
+    sep = '\t',
+    header = False,
+    index = False
 )
 
 
+print "Finding unmatched ASN SNPs"
+df_tmp = df_snps_ASN.loc[ df_snps_ASN['tmp'].isnull(), 'SNP' ]
+unmatched_ASN = df_tmp.shape[0]
+df_snps_ASN.dropna(inplace=True)
+
+print "List of Unmatched ASN SNPs appended to " + snp_file_ASN
+df_tmp.to_csv(
+    snp_file_ASN,
+    mode = 'a',
+    sep = '\t',
+    header = False,
+    index = False
+)
+
+
+print "Finding unmatched OTR SNPs"
+df_tmp = df_snps_OTR.loc[ df_snps_OTR['tmp'].isnull(), 'SNP' ]
+unmatched_OTR = df_tmp.shape[0]
+df_snps_OTR.dropna(inplace=True)
+
+print "List of Unmatched OTR SNPs appended to " + snp_file_OTR
+df_tmp.to_csv(
+    snp_file_OTR,
+    mode = 'a',
+    sep = '\t',
+    header = False,
+    index = False
+)
+
+del df_tmp
+
+
+
+##### SPLIT THE DICTIONARY MAPPING INTO MULTIPLE COLUMNS #####
+print "Splitting the dictionary mapping into multiple columns ..." 
+df_snps_EUR[['Chromosome','BasePairPos', 'Call Freq', 'Minor Freq']] = pd.DataFrame(df_snps_EUR.tmp.values.tolist(), index = df_snps_EUR.index)
+df_snps_AFR[['Chromosome','BasePairPos', 'Call Freq', 'Minor Freq']] = pd.DataFrame(df_snps_AFR.tmp.values.tolist(), index = df_snps_AFR.index)
+df_snps_ASN[['Chromosome','BasePairPos', 'Call Freq', 'Minor Freq']] = pd.DataFrame(df_snps_ASN.tmp.values.tolist(), index = df_snps_ASN.index)
+df_snps_OTR[['Chromosome','BasePairPos', 'Call Freq', 'Minor Freq']] = pd.DataFrame(df_snps_OTR.tmp.values.tolist(), index = df_snps_OTR.index)
+
+df_snps_EUR.drop("tmp", axis = 1, inplace = True)
+df_snps_AFR.drop("tmp", axis = 1, inplace = True)
+df_snps_ASN.drop("tmp", axis = 1, inplace = True)
+df_snps_OTR.drop("tmp", axis = 1, inplace = True)
+
+
+
+##### DROP SNPs W/ MAF < 0.5% #####
+print "Dropping SNPs w/ MAF < 0.5%% ..."
+MAF_snps_EUR = df_snps_EUR.loc[ df_snps_EUR['Minor Freq'] < 0.005 ].shape[0]
+MAF_snps_AFR = df_snps_AFR.loc[ df_snps_AFR['Minor Freq'] < 0.005 ].shape[0]
+MAF_snps_ASN = df_snps_ASN.loc[ df_snps_ASN['Minor Freq'] < 0.005 ].shape[0]
+MAF_snps_OTR = df_snps_OTR.loc[ df_snps_OTR['Minor Freq'] < 0.005 ].shape[0]
+
+df_snps_EUR.drop( df_snps_EUR.loc[ df_snps_EUR['Minor Freq'] < 0.005 ].index, inplace = True )
+df_snps_AFR.drop( df_snps_AFR.loc[ df_snps_AFR['Minor Freq'] < 0.005 ].index, inplace = True )
+df_snps_ASN.drop( df_snps_ASN.loc[ df_snps_ASN['Minor Freq'] < 0.005 ].index, inplace = True )
+df_snps_OTR.drop( df_snps_OTR.loc[ df_snps_OTR['Minor Freq'] < 0.005 ].index, inplace = True )
+
+
+
+##### DROP SNPs W/ CALL RATE < 90% #####
+print "Dropping SNPs w/ Call Rate < 90%% ..."
+call_snps_EUR = df_snps_EUR.loc[ df_snps_EUR['Call Freq'] < 0.9 ].shape[0]
+call_snps_AFR = df_snps_AFR.loc[ df_snps_AFR['Call Freq'] < 0.9 ].shape[0]
+call_snps_ASN = df_snps_ASN.loc[ df_snps_ASN['Call Freq'] < 0.9 ].shape[0]
+call_snps_OTR = df_snps_OTR.loc[ df_snps_OTR['Call Freq'] < 0.9 ].shape[0]
+
+df_snps_EUR.drop( df_snps_EUR.loc[ df_snps_EUR['Call Freq'] < 0.9 ].index, inplace = True )
+df_snps_AFR.drop( df_snps_AFR.loc[ df_snps_AFR['Call Freq'] < 0.9 ].index, inplace = True )
+df_snps_ASN.drop( df_snps_ASN.loc[ df_snps_ASN['Call Freq'] < 0.9 ].index, inplace = True )
+df_snps_OTR.drop( df_snps_OTR.loc[ df_snps_OTR['Call Freq'] < 0.9 ].index, inplace = True )
+#TODO APPEND!!! 
+
+
+##### DROP SNPs NOT ON CHR 1-22 or X #####
+print "Dropping SNPs not on Chr 1-22 or X " 
+chr_snps_EUR = df_snps_EUR.loc[ (df_snps_EUR['Chromosome'] == 'Y') | (df_snps_EUR['Chromosome'] == 'XY') | (df_snps_EUR['Chromosome'] == 'MT') ].shape[0]
+chr_snps_AFR = df_snps_AFR.loc[ (df_snps_AFR['Chromosome'] == 'Y') | (df_snps_AFR['Chromosome'] == 'XY') | (df_snps_AFR['Chromosome'] == 'MT') ].shape[0]
+chr_snps_ASN = df_snps_ASN.loc[ (df_snps_ASN['Chromosome'] == 'Y') | (df_snps_ASN['Chromosome'] == 'XY') | (df_snps_ASN['Chromosome'] == 'MT') ].shape[0]
+chr_snps_OTR = df_snps_OTR.loc[ (df_snps_OTR['Chromosome'] == 'Y') | (df_snps_OTR['Chromosome'] == 'XY') | (df_snps_OTR['Chromosome'] == 'MT') ].shape[0]
+
+df_snps_EUR.drop( df_snps_EUR.loc[ (df_snps_EUR['Chromosome'] == 'Y') | (df_snps_EUR['Chromosome'] == 'XY') | (df_snps_EUR['Chromosome'] == 'MT') ].index, inplace = True )
+df_snps_AFR.drop( df_snps_AFR.loc[ (df_snps_AFR['Chromosome'] == 'Y') | (df_snps_AFR['Chromosome'] == 'XY') | (df_snps_AFR['Chromosome'] == 'MT') ].index, inplace = True )
+df_snps_ASN.drop( df_snps_ASN.loc[ (df_snps_ASN['Chromosome'] == 'Y') | (df_snps_ASN['Chromosome'] == 'XY') | (df_snps_ASN['Chromosome'] == 'MT') ].index, inplace = True )
+df_snps_OTR.drop( df_snps_OTR.loc[ (df_snps_OTR['Chromosome'] == 'Y') | (df_snps_OTR['Chromosome'] == 'XY') | (df_snps_OTR['Chromosome'] == 'MT') ].index, inplace = True )
+#TODO APPEND!!! 
+
+
+##### DROP MAF AND CALL RATE COLUMNS #####
+print "Dropping MAF and Call Rate columns ... "
+df_snps_EUR.drop("Minor Freq", axis = 1, inplace = True)
+df_snps_AFR.drop("Minor Freq", axis = 1, inplace = True)
+df_snps_ASN.drop("Minor Freq", axis = 1, inplace = True)
+df_snps_OTR.drop("Minor Freq", axis = 1, inplace = True)
+
+df_snps_EUR.drop("Call Freq", axis = 1, inplace = True)
+df_snps_AFR.drop("Call Freq", axis = 1, inplace = True)
+df_snps_ASN.drop("Call Freq", axis = 1, inplace = True)
+df_snps_OTR.drop("Call Freq", axis = 1, inplace = True)
+#TODO APPEND!!!
+
 
 ##### ADD GENETIC DISTANCE (MORGANS) AND SET TO 0 #####
-df_snps['GeneticDist'] = 0
+print "Adding genetic distance column ..."
+df_snps_EUR['GeneticDist'] = 0
+df_snps_AFR['GeneticDist'] = 0
+df_snps_ASN['GeneticDist'] = 0
+df_snps_OTR['GeneticDist'] = 0
 
 
 
 ##### REORGANIZE COLUMNS AND WRITE #####
+print "Reordering columns ..." 
 reordered_cols = [
     'Chromosome',
     'SNP',
@@ -142,15 +401,95 @@ reordered_cols = [
     'BasePairPos'
 ]
 
-df_snps = df_snps[ reordered_cols ]
+df_snps_EUR = df_snps_EUR[ reordered_cols ]
+df_snps_AFR = df_snps_AFR[ reordered_cols ]
+df_snps_ASN = df_snps_ASN[ reordered_cols ]
+df_snps_OTR = df_snps_OTR[ reordered_cols ]
 
-print "Writing MAP file to " + out_file
-df_snps.to_csv(
-    out_file,
+end_snps_EUR = df_snps_EUR.shape[0]
+end_snps_AFR = df_snps_AFR.shape[0]
+end_snps_ASN = df_snps_ASN.shape[0]
+end_snps_OTR = df_snps_OTR.shape[0]
+
+print df_snps_EUR.head()
+print df_snps_AFR.head()
+print df_snps_ASN.head()
+print df_snps_OTR.head()
+exit()
+
+
+##### WRITE MAP FILES #####
+print "Writing EUR MAP file to " + EUR_file
+df_snps_EUR.to_csv(
+    EUR_file,
     sep = '\t',
     header = False,
     index = False
 )
+
+print "Writing AFR MAP file to " + AFR_file
+df_snps_AFR.to_csv(
+    AFR_file,
+    sep = '\t',
+    header = False,
+    index = False
+)
+
+print "Writing ASN MAP file to " + ASN_file
+df_snps_ASN.to_csv(
+    ASN_file,
+    sep = '\t',
+    header = False,
+    index = False
+)
+
+print "Writing OTR MAP file to " + OTR_file
+df_snps_OTR.to_csv(
+    OTR_file,
+    sep = '\t',
+    header = False,
+    index = False
+)
+
+
+
+##### SUMMARY REPORT #####
+# TODO!
+print "################### EUR QC REPORT ###################"
+print "Starting SNPs:              \t%.0f" % (start_snps_EUR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_EUR)
+print "SNPs w/ MAF < 0.5%%:        \t%.0f" % (MAF_snps_EUR)
+print "SNPs w/ call rate < 90%%:   \t%.0f" % (call_snps_EUR)
+print "SNPs not on Chr 1-22 or X: \t%.0f" % (chr_snps_EUR)
+print "SNPs after QC:              \t%.0f" % (end_snps_EUR)
+print "\n\n\n"
+
+print "################### AFR QC REPORT ###################"
+print "Starting SNPs:              \t%.0f" % (start_snps_AFR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_AFR)
+print "SNPs w/ MAF < 0.5%%:        \t%.0f" % (MAF_snps_AFR)
+print "SNPs w/ call rate < 90%%:   \t%.0f" % (call_snps_AFR)
+print "SNPs not on Chr 1-22 or X: \t%.0f" % (chr_snps_AFR)
+print "SNPs after QC:              \t%.0f" % (end_snps_AFR)
+print "\n\n\n"
+
+print "################### ASN QC REPORT ###################"
+print "Starting SNPs:              \t%.0f" % (start_snps_ASN)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_ASN)
+print "SNPs w/ MAF < 0.5%%:        \t%.0f" % (MAF_snps_ASN)
+print "SNPs w/ call rate < 90%%:   \t%.0f" % (call_snps_ASN)
+print "SNPs not on Chr 1-22 or X: \t%.0f" % (chr_snps_ASN)
+print "SNPs after QC:              \t%.0f" % (end_snps_ASN)
+print "\n\n\n"
+
+print "################### OTR QC REPORT ###################"
+print "Starting SNPs:              \t%.0f" % (start_snps_OTR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_OTR)
+print "SNPs w/ MAF < 0.5%%:        \t%.0f" % (MAF_snps_OTR)
+print "SNPs w/ call rate < 90%%:   \t%.0f" % (call_snps_OTR)
+print "SNPs not on Chr 1-22 or X: \t%.0f" % (chr_snps_OTR)
+print "SNPs after QC:              \t%.0f" % (end_snps_OTR)
+print "\n\n\n"
 
 
 end_time = time.time()
