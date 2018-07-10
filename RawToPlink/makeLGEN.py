@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import numpy as np
 import time
-import pickle
 
 time_start = time.time()
 
@@ -29,8 +28,14 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-race_file      = DATA_DIR + 'PLINK_FILES/race_dict.csv'
-unmatched_file = DATA_DIR + 'PLINK_FILES/unmatchedSNPs.txt'
+race_file            = DATA_DIR + 'PLINK_FILES/race_dict.csv'
+low_call_sample_file = DATA_DIR + 'PLINK_FILES/low_call_rate_samples.txt'
+
+snp_file_EUR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_EUR.txt'
+snp_file_AFR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_AFR.txt'
+snp_file_ASN = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_ASN.txt'
+snp_file_OTR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_OTR.txt'
+
 EUR_file       = DATA_DIR + 'PLINK_FILES/EUR_EA11101_2011-09-28.lgen'
 AFR_file       = DATA_DIR + 'PLINK_FILES/AFR_EA11101_2011-09-28.lgen'
 ASN_file       = DATA_DIR + 'PLINK_FILES/ASN_EA11101_2011-09-28.lgen'
@@ -39,6 +44,12 @@ OTR_file       = DATA_DIR + 'PLINK_FILES/OTR_EA11101_2011-09-28.lgen'
 
 if TEST:
     files    = ['test.txt']
+
+    snp_file_EUR = 'snps_to_be_removed_EUR.txt'
+    snp_file_AFR = 'snps_to_be_removed_AFR.txt'
+    snp_file_ASN = 'snps_to_be_removed_ASN.txt'
+    snp_file_OTR = 'snps_to_be_removed_OTR.txt'
+
     EUR_file = 'EUR_EA11101_2011-09-28.lgen'
     AFR_file = 'AFR_EA11101_2011-09-28.lgen'
     ASN_file = 'ASN_EA11101_2011-09-28.lgen'
@@ -78,12 +89,24 @@ cols = [
 
 
 
+#### LOAD LOW CALL SAMPLE FILE #####
+print "Loading low-call rate sample file ..."
+df_low_call = pd.read_table(
+    low_call_sample_file,
+    sep = '\t',
+    header = None,
+    names = ['Sample ID']
+)
+
+
+
 ##### LOAD RACE DICTIONARY #####
 print "Loading race dictionary at " + race_file
-df_race = pd.read_table(race_file,
-                        sep = ',',
-                        header = 0,
-                        dtype = {'Sample ID': object, 'Race': object}
+df_race = pd.read_table(
+    race_file,
+    sep = ',',
+    header = 0,
+    dtype = {'Sample ID': object, 'Race': object}
 )
 
 race_dict = df_race.set_index('Sample ID').T.to_dict('list')
@@ -95,15 +118,38 @@ for key in race_dict.keys():
 
 
 
-##### LOAD UNMATCHED SNPs #####
-print "Loading list of unmatched SNPs ..."
-unmatched_df = pd.read_table(
-    unmatched_file,
+##### LOAD SNPs TO BE REMOVED #####
+print "Loading list of EUR SNPs to be removed..."
+unmatched_df_EUR = pd.read_table(
+    snp_file_EUR,
     sep = '\t',
     header = None,
     names = ['SNP']
 )
 
+print "Loading list of AFR SNPs to be removed..."
+unmatched_df_AFR = pd.read_table(
+    snp_file_AFR,
+    sep = '\t',
+    header = None,
+    names = ['SNP']
+)
+
+print "Loading list of ASN SNPs to be removed..."
+unmatched_df_ASN = pd.read_table(
+    snp_file_ASN,
+    sep = '\t',
+    header = None,
+    names = ['SNP']
+)
+
+print "Loading list of OTR SNPs to be removed..."
+unmatched_df_OTR = pd.read_table(
+    snp_file_OTR,
+    sep = '\t',
+    header = None,
+    names = ['SNP']
+)
 
 
 ##### LOOP OVER FILES ##### 
@@ -121,14 +167,9 @@ for f in files:
 
 
 
-    ##### DROP SNPs THAT DON'T MATCH TO THE MANIFEST FILE ##### 
-    df.drop( df.loc[ df['SNP Name'].isin( unmatched_df['SNP'] ) ].index, inplace=True )
-
-
-
-    ##### DROP SNPs THAT ONLY HAVE 1 ALLELE #####
-    df.drop( df.loc[ df['Allele1 - Forward'] == "-" ].index, inplace=True )
-    df.drop( df.loc[ df['Allele2 - Forward'] == "-" ].index, inplace=True )
+    ##### DROP SAMPLES WITH LOW CALL RATE #####
+    print "Dropping samples w/ call rate < 90% ..." 
+    df.drop( df.loc[ df['Sample ID'].isin( df_low_call['Sample ID'] ) ].index, inplace=True )
 
 
 
@@ -140,27 +181,6 @@ for f in files:
     
 
     
-    ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
-    rows_before_GCCut = df.shape[0]
-    df.drop(df[ df['GC Score'] < GC_thresh ].index, inplace = True)
-    rows_after_GCCut = df.shape[0]
-    reduction_fraction = 100. * (1. - float(rows_after_GCCut) / float(rows_before_GCCut))
-
-    print "GC CUT:\t" + str(GC_thresh)
-    print "ROWS BEFORE GC CUT:\t" + str( rows_before_GCCut )
-    print "ROWS AFTER GC CUT:\t" + str( rows_after_GCCut )
-    print 'DATA REDUCED BY:\t%.1f%%' % reduction_fraction
-    
-
-
-    ##### AFTER CUTS. DROP GC SCORE COLUMN #####
-    df.drop( "GC Score",
-             axis = 1,
-             inplace = True
-    )
-
-
-
     ##### DIVIDE DATAFRAME BY RACE #####
     print "Splitting dataframe by race ..."
     df_EUR = df.loc[ df['Race'] == 'White' ]
@@ -192,6 +212,83 @@ for f in files:
                 inplace = True
     )
     
+
+
+    ##### DROP SNPs THAT FAILED QC IN THE MAP STEP #####
+    print "Dropping SNPs that failed QC in the map step ... "
+    df_EUR.drop( df_EUR.loc[ df_EUR['SNP Name'].isin( unmatched_df_EUR['SNP'] ) ].index, inplace=True )
+    df_AFR.drop( df_AFR.loc[ df_AFR['SNP Name'].isin( unmatched_df_AFR['SNP'] ) ].index, inplace=True )
+    df_ASN.drop( df_ASN.loc[ df_ASN['SNP Name'].isin( unmatched_df_ASN['SNP'] ) ].index, inplace=True )
+    df_OTR.drop( df_OTR.loc[ df_OTR['SNP Name'].isin( unmatched_df_OTR['SNP'] ) ].index, inplace=True )
+
+
+
+    ##### DROP SNPs THAT ONLY HAVE 1 ALLELE #####
+    print "Dropping EUR SNPs that only have 1 allele ..."
+    snps_before = df_EUR.shape[0]
+    df_EUR.drop( df_EUR.loc[ df_EUR['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df_EUR.drop( df_EUR.loc[ df_EUR['Allele2 - Forward'] == "-" ].index, inplace=True )
+    snps_after = df_EUR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping AFR SNPs that only have 1 allele ..."
+    snps_before = df_AFR.shape[0]
+    df_AFR.drop( df_AFR.loc[ df_AFR['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df_AFR.drop( df_AFR.loc[ df_AFR['Allele2 - Forward'] == "-" ].index, inplace=True )
+    snps_after = df_AFR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping ASN SNPs that only have 1 allele ..."
+    snps_before = df_ASN.shape[0]
+    df_ASN.drop( df_ASN.loc[ df_ASN['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df_ASN.drop( df_ASN.loc[ df_ASN['Allele2 - Forward'] == "-" ].index, inplace=True )
+    snps_after = df_ASN.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping OTR SNPs that only have 1 allele ..."
+    snps_before = df_OTR.shape[0]
+    df_OTR.drop( df_OTR.loc[ df_OTR['Allele1 - Forward'] == "-" ].index, inplace=True )
+    df_OTR.drop( df_OTR.loc[ df_OTR['Allele2 - Forward'] == "-" ].index, inplace=True )
+    snps_after = df_OTR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+
+
+    ##### SELECT DATA WHERE GC SCORE GREATER THAN THRESHOLD #####
+    print "Dropping EUR SNPs that are below the GC threshold ..."
+    snps_before = df_EUR.shape[0]
+    df_EUR.drop(df_EUR[ df_EUR['GC Score'] < GC_thresh ].index, inplace = True)
+    snps_after = df_EUR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping AFR SNPs that are below the GC threshold ..."
+    snps_before = df_AFR.shape[0]
+    df_AFR.drop(df_AFR[ df_AFR['GC Score'] < GC_thresh ].index, inplace = True)
+    snps_after = df_AFR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping ASN SNPs that are below the GC threshold ..."
+    snps_before = df_ASN.shape[0]
+    df_ASN.drop(df_ASN[ df_ASN['GC Score'] < GC_thresh ].index, inplace = True)
+    snps_after = df_ASN.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+    print "Dropping OTR SNPs that are below the GC threshold ..."
+    snps_before = df_OTR.shape[0]
+    df_OTR.drop(df_OTR[ df_OTR['GC Score'] < GC_thresh ].index, inplace = True)
+    snps_after = df_OTR.shape[0]
+    print "%i SNPs dropped" % (snps_before - snps_after)
+
+
+
+    ##### AFTER CUTS. DROP GC SCORE COLUMN #####
+    df_EUR.drop("GC Score", axis = 1, inplace = True)
+    df_AFR.drop("GC Score", axis = 1, inplace = True)
+    df_ASN.drop("GC Score", axis = 1, inplace = True)
+    df_OTR.drop("GC Score", axis = 1, inplace = True)
+
+
+
     ##### REORDER COLUMNS FOR LGEN FORMAT #####
     reordered_cols = [
         'Sample Name',

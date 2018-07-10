@@ -4,7 +4,7 @@ import numpy as np
 
 DATA_DIR   = '/home/jrca253/DATA/IlluminaSupportFiles/'
 OUT_DIR    = '/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/PLINK_FILES/'
-locus_file = DATA_DIR + 'HumanOmni2-5-8-v1-2-A-Loci-Report.txt' #CHANGE ME 
+locus_file = DATA_DIR + 'HumanOmni2.5-8v1_C_LocusReport.txt'
 out_file   = OUT_DIR + "locus_dict.txt"
 
 
@@ -15,8 +15,7 @@ cols = [
     'Name',
     'Chr',
     'Position',
-    'Call Freq',
-    'Minor Freq'
+    'Call Freq'
 ]
 
 df = pd.read_table(
@@ -28,8 +27,7 @@ df = pd.read_table(
         'Name': object, 
         'Chr': object, 
         'Position': int, 
-        'Call Freq': float,
-        'Minor Freq': float
+        'Call Freq': float
         }
 )
 
