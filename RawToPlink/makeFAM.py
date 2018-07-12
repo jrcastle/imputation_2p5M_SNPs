@@ -8,11 +8,12 @@ EUR_file       = DATA_DIR + 'EUR_EA11101_2011-09-28.fam'
 AFR_file       = DATA_DIR + 'AFR_EA11101_2011-09-28.fam'
 ASN_file       = DATA_DIR + 'ASN_EA11101_2011-09-28.fam'
 OTR_file       = DATA_DIR + 'OTR_EA11101_2011-09-28.fam'
-call_file      = DATA_DIR + 'low_call_rate_samples.txt'
+
+
 
 ##### LOAD THE QC FILE #####
 print "Loading Array QC file ..."
-cols=['Sample ID', 'Call Rate', 'Gender']
+cols=['Sample ID', 'Gender']
 df = pd.read_table(
     sample_QC_file,
     sep = ',',
@@ -36,23 +37,6 @@ del df_race
 for key in race_dict.keys():
     race_dict[key] = race_dict[key][0]
 #ENDFOR 
-
-
-
-##### DROP SAMPLES WITH CALL RATE < 90% #####
-print "Dropping samples w/ call rate < 90% ..."
-df_tmp = df.loc[ df['Call Rate'] < 0.9 ].copy()
-df.drop( df.loc[ df['Call Rate'] < 0.9 ].index, inplace=True )
-print "%i samples dropped" % (df_tmp.shape[0])
-
-print "List of samples to be dropped for low call rates saved in " + call_file
-df_tmp['Sample ID'].to_csv(
-    call_file,
-    sep = '\t',
-    header = False,
-    index = False
-)    
-del df_tmp
 
 
 

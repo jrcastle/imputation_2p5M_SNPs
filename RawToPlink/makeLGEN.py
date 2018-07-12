@@ -7,7 +7,6 @@ import time
 time_start = time.time()
 
 TEST = 0
-
 DATA_DIR='/home/jrca253/DATA/EA11101_2011-09-28_FinalReport_1_to_16/'
 files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport1.txt',
@@ -28,8 +27,7 @@ files = [
     DATA_DIR + 'EA11101_2011-09-28_FinalReport16.txt'
 ]
 
-race_file            = DATA_DIR + 'PLINK_FILES/race_dict.csv'
-low_call_sample_file = DATA_DIR + 'PLINK_FILES/low_call_rate_samples.txt'
+race_file = DATA_DIR + 'PLINK_FILES/race_dict.csv'
 
 snp_file_EUR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_EUR.txt'
 snp_file_AFR = DATA_DIR + 'PLINK_FILES/snps_to_be_removed_AFR.txt'
@@ -86,17 +84,6 @@ cols = [
     'GC Score',
     'Sample Name'
 ]
-
-
-
-#### LOAD LOW CALL SAMPLE FILE #####
-print "Loading low-call rate sample file ..."
-df_low_call = pd.read_table(
-    low_call_sample_file,
-    sep = '\t',
-    header = None,
-    names = ['Sample ID']
-)
 
 
 
@@ -164,12 +151,6 @@ for f in files:
         header = 0,
         usecols = cols
     )
-
-
-
-    ##### DROP SAMPLES WITH LOW CALL RATE #####
-    print "Dropping samples w/ call rate < 90% ..." 
-    df.drop( df.loc[ df['Sample ID'].isin( df_low_call['Sample ID'] ) ].index, inplace=True )
 
 
 

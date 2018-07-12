@@ -28,8 +28,8 @@ files = [
 ]
 
 ##### DICTIONARY FILES #####
-race_file  = DATA_DIR + 'PLINK_FILES/race_dict.csv'
-locus_file = DATA_DIR + 'PLINK_FILES/locus_dict.txt'
+race_file       = DATA_DIR + 'PLINK_FILES/race_dict.csv'
+annotation_file = DATA_DIR + 'PLINK_FILES/annotation_dict.txt'
 
 
 
@@ -117,22 +117,21 @@ for key in race_dict.keys():
 
 
 
-##### LOAD LOCUS REPORT DICTIONARY #####
-print "Loading locus report at " + locus_file
-df_locus = pd.read_table(
-    locus_file,
+##### LOAD ANNOTATION FILE DICTIONARY #####
+print "Loading annotation file at " + annotation_file
+df_annotation = pd.read_table(
+    annotation_file,
     sep = '\t',
     header = 0,
     dtype = {
         'Name': object,
         'Chr': object,
-        'Position': int,
-        'Call Freq': float
+        'MapInfo': int
         }
 )
 
-locus_dict = df_locus.set_index('Name').T.to_dict('list')
-del df_locus
+annotation_dict = df_annotation.set_index('Name').T.to_dict('list')
+del df_annotation
 
 
 ##### INITIALIZE THE SNP ARRAY #####
@@ -232,12 +231,12 @@ start_snps_OTR = df_snps_OTR.shape[0]
 
 
 
-##### MATCH SNP TO CHROMOSOME, BP POSITION, AND CALL RATE #####
+##### MATCH SNP TO CHROMOSOME, BP POSITION #####
 print "Matching SNP to chromosome and base-pair position ..."
-df_snps_EUR['tmp'] = df_snps_EUR['SNP'].map(locus_dict)
-df_snps_AFR['tmp'] = df_snps_AFR['SNP'].map(locus_dict)
-df_snps_ASN['tmp'] = df_snps_ASN['SNP'].map(locus_dict)
-df_snps_OTR['tmp'] = df_snps_OTR['SNP'].map(locus_dict)
+df_snps_EUR['tmp'] = df_snps_EUR['SNP'].map(annotation_dict)
+df_snps_AFR['tmp'] = df_snps_AFR['SNP'].map(annotation_dict)
+df_snps_ASN['tmp'] = df_snps_ASN['SNP'].map(annotation_dict)
+df_snps_OTR['tmp'] = df_snps_OTR['SNP'].map(annotation_dict)
 
 
 
@@ -307,71 +306,15 @@ del df_tmp
 
 ##### SPLIT THE DICTIONARY MAPPING INTO MULTIPLE COLUMNS #####
 print "Splitting the dictionary mapping into multiple columns ..." 
-df_snps_EUR[['Chromosome','BasePairPos', 'Call Freq']] = pd.DataFrame(df_snps_EUR.tmp.values.tolist(), index = df_snps_EUR.index)
-df_snps_AFR[['Chromosome','BasePairPos', 'Call Freq']] = pd.DataFrame(df_snps_AFR.tmp.values.tolist(), index = df_snps_AFR.index)
-df_snps_ASN[['Chromosome','BasePairPos', 'Call Freq']] = pd.DataFrame(df_snps_ASN.tmp.values.tolist(), index = df_snps_ASN.index)
-df_snps_OTR[['Chromosome','BasePairPos', 'Call Freq']] = pd.DataFrame(df_snps_OTR.tmp.values.tolist(), index = df_snps_OTR.index)
+df_snps_EUR[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps_EUR.tmp.values.tolist(), index = df_snps_EUR.index)
+df_snps_AFR[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps_AFR.tmp.values.tolist(), index = df_snps_AFR.index)
+df_snps_ASN[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps_ASN.tmp.values.tolist(), index = df_snps_ASN.index)
+df_snps_OTR[['Chromosome','BasePairPos']] = pd.DataFrame(df_snps_OTR.tmp.values.tolist(), index = df_snps_OTR.index)
 
 df_snps_EUR.drop("tmp", axis = 1, inplace = True)
 df_snps_AFR.drop("tmp", axis = 1, inplace = True)
 df_snps_ASN.drop("tmp", axis = 1, inplace = True)
 df_snps_OTR.drop("tmp", axis = 1, inplace = True)
-
-
-
-##### DROP SNPs W/ CALL RATE < 90% #####
-df_tmp = df_snps_EUR.loc[ df_snps_EUR['Call Freq'] < 0.9 ].copy()
-print "List of EUR SNPs w/ call rate < 90% appended to " + snp_file_EUR
-df_tmp['SNP'].to_csv(
-    snp_file_EUR,
-    mode = 'a',
-    sep = '\t',
-    header = False,
-    index = False
-)
-
-df_tmp = df_snps_AFR.loc[ df_snps_AFR['Call Freq'] < 0.9 ].copy()
-print "List of AFR SNPs w/ call rate < 90% appended to " + snp_file_AFR
-df_tmp['SNP'].to_csv(
-    snp_file_AFR,
-    mode = 'a',
-    sep = '\t',
-    header = False,
-    index = False
-)
-
-df_tmp = df_snps_ASN.loc[ df_snps_ASN['Call Freq'] < 0.9 ].copy()
-print "List of ASN SNPs w/ call rate < 90% appended to " + snp_file_ASN
-df_tmp['SNP'].to_csv(
-    snp_file_ASN,
-    mode = 'a',
-    sep = '\t',
-    header = False,
-    index = False
-)
-
-df_tmp = df_snps_OTR.loc[ df_snps_OTR['Call Freq'] < 0.9 ].copy()
-print "List of OTR SNPs w/ call rate < 90% appended to " + snp_file_OTR
-df_tmp['SNP'].to_csv(
-    snp_file_OTR,
-    mode = 'a',
-    sep = '\t',
-    header = False,
-    index = False
-)
-
-del df_tmp
-
-print "Dropping SNPs w/ Call Rate < 90% ..."
-call_snps_EUR = df_snps_EUR.loc[ df_snps_EUR['Call Freq'] < 0.9 ].shape[0]
-call_snps_AFR = df_snps_AFR.loc[ df_snps_AFR['Call Freq'] < 0.9 ].shape[0]
-call_snps_ASN = df_snps_ASN.loc[ df_snps_ASN['Call Freq'] < 0.9 ].shape[0]
-call_snps_OTR = df_snps_OTR.loc[ df_snps_OTR['Call Freq'] < 0.9 ].shape[0]
-
-df_snps_EUR.drop( df_snps_EUR.loc[ df_snps_EUR['Call Freq'] < 0.9 ].index, inplace = True )
-df_snps_AFR.drop( df_snps_AFR.loc[ df_snps_AFR['Call Freq'] < 0.9 ].index, inplace = True )
-df_snps_ASN.drop( df_snps_ASN.loc[ df_snps_ASN['Call Freq'] < 0.9 ].index, inplace = True )
-df_snps_OTR.drop( df_snps_OTR.loc[ df_snps_OTR['Call Freq'] < 0.9 ].index, inplace = True )
 
 
 
@@ -428,14 +371,6 @@ df_snps_EUR.drop( df_snps_EUR.loc[ (df_snps_EUR['Chromosome'] == 'Y') | (df_snps
 df_snps_AFR.drop( df_snps_AFR.loc[ (df_snps_AFR['Chromosome'] == 'Y') | (df_snps_AFR['Chromosome'] == 'XY') | (df_snps_AFR['Chromosome'] == 'MT') ].index, inplace = True )
 df_snps_ASN.drop( df_snps_ASN.loc[ (df_snps_ASN['Chromosome'] == 'Y') | (df_snps_ASN['Chromosome'] == 'XY') | (df_snps_ASN['Chromosome'] == 'MT') ].index, inplace = True )
 df_snps_OTR.drop( df_snps_OTR.loc[ (df_snps_OTR['Chromosome'] == 'Y') | (df_snps_OTR['Chromosome'] == 'XY') | (df_snps_OTR['Chromosome'] == 'MT') ].index, inplace = True )
-
-
-
-##### DROP CALL RATE COLUMN #####
-df_snps_EUR.drop("Call Freq", axis = 1, inplace = True)
-df_snps_AFR.drop("Call Freq", axis = 1, inplace = True)
-df_snps_ASN.drop("Call Freq", axis = 1, inplace = True)
-df_snps_OTR.drop("Call Freq", axis = 1, inplace = True)
 
 
 
@@ -504,37 +439,33 @@ df_snps_OTR.to_csv(
 
 
 
-##### SUMMARY REPORT #####
+##### SUMMARY FILE #####
 print "################### EUR QC REPORT ###################"
-print "Starting SNPs:            \t%.0f" % (start_snps_EUR)
-print "SNPs not in locus report: \t%.0f" % (unmatched_EUR)
-print "SNPs w/ call rate < 90%%: \t%.0f" % (call_snps_EUR)
-print "SNPs not on Chr 1-22 or X:\t%.0f" % (chr_snps_EUR)
-print "SNPs after QC:            \t%.0f" % (end_snps_EUR)
+print "Starting SNPs:              \t%.0f" % (start_snps_EUR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_EUR)
+print "SNPs not on Chr 1-22 or X:  \t%.0f" % (chr_snps_EUR)
+print "SNPs after QC:              \t%.0f" % (end_snps_EUR)
 print "\n\n\n"
 
 print "################### AFR QC REPORT ###################"
-print "Starting SNPs:            \t%.0f" % (start_snps_AFR)
-print "SNPs not in locus report: \t%.0f" % (unmatched_AFR)
-print "SNPs w/ call rate < 90%%: \t%.0f" % (call_snps_AFR)
-print "SNPs not on Chr 1-22 or X:\t%.0f" % (chr_snps_AFR)
-print "SNPs after QC:            \t%.0f" % (end_snps_AFR)
+print "Starting SNPs:              \t%.0f" % (start_snps_AFR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_AFR)
+print "SNPs not on Chr 1-22 or X:  \t%.0f" % (chr_snps_AFR)
+print "SNPs after QC:              \t%.0f" % (end_snps_AFR)
 print "\n\n\n"
 
 print "################### ASN QC REPORT ###################"
-print "Starting SNPs:            \t%.0f" % (start_snps_ASN)
-print "SNPs not in locus report: \t%.0f" % (unmatched_ASN)
-print "SNPs w/ call rate < 90%%: \t%.0f" % (call_snps_ASN)
-print "SNPs not on Chr 1-22 or X:\t%.0f" % (chr_snps_ASN)
-print "SNPs after QC:            \t%.0f" % (end_snps_ASN)
+print "Starting SNPs:              \t%.0f" % (start_snps_ASN)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_ASN)
+print "SNPs not on Chr 1-22 or X:  \t%.0f" % (chr_snps_ASN)
+print "SNPs after QC:              \t%.0f" % (end_snps_ASN)
 print "\n\n\n"
 
 print "################### OTR QC REPORT ###################"
-print "Starting SNPs:            \t%.0f" % (start_snps_OTR)
-print "SNPs not in locus report: \t%.0f" % (unmatched_OTR)
-print "SNPs w/ call rate < 90%%: \t%.0f" % (call_snps_OTR)
-print "SNPs not on Chr 1-22 or X:\t%.0f" % (chr_snps_OTR)
-print "SNPs after QC:            \t%.0f" % (end_snps_OTR)
+print "Starting SNPs:              \t%.0f" % (start_snps_OTR)
+print "SNPs not in annotation file:\t%.0f" % (unmatched_OTR)
+print "SNPs not on Chr 1-22 or X:  \t%.0f" % (chr_snps_OTR)
+print "SNPs after QC:              \t%.0f" % (end_snps_OTR)
 print "\n"
 
 
