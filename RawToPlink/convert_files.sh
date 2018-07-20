@@ -1,15 +1,23 @@
 #!/bin/sh
+
+# Cuts
+MAF=0.005 
+GENO=0.1
+MIND=0.1
+
+# Directories/timing
 SECONDS=0 
 FILE=$1
 WORKING_DIR=$PWD
 HRC_DIR='/home/jrca253/HRC/'
 OUT_DIR='VCFGZ'
+
 cd $WORKING_DIR
 
 # Convert and first-pass QC
 echo -e "\n########################## Converting lgen to ped, bed, and freq ##########################\n"
-echo -e "\n########### plink_1_9 --lfile $FILE --out ${FILE}_semiclean  --geno 0.1 --maf 0.005 --mind 0.1 --recode --make-bed --freq ###########\n"
-plink_1_9 --lfile $FILE --out ${FILE}_semiclean  --geno 0.1 --maf 0.005 --mind 0.1 --recode --make-bed --freq
+echo -e "\n########### plink_1_9 --lfile $FILE --out ${FILE}_semiclean  --geno $GENO --maf $MAF --mind $MIND --recode --make-bed --freq ###########\n"
+plink_1_9 --lfile $FILE --out ${FILE}_semiclean  --geno $GENO --maf $MAF --mind $MIND --recode --make-bed --freq
 
 # SEX CHECK
 echo -e "\n########################## SEX CHECK ##########################\n"
@@ -43,10 +51,10 @@ echo -e "\n########################## Converting to vcfgz ######################
 for i in {1..22}
 do
     echo -e "\n########################## Processing Chromosome $i ##########################\n"
-    echo -e "\n########### plink_1_9 --bfile ${FILE}_semiclean2-updated-chr$i --recode tab --out ${FILE}_clean-chr$i --make-bed --geno 0.1 --maf 0.005 --hwe 0.00005 ###########\n"
-    plink_1_9 --bfile ${FILE}_semiclean2-updated-chr$i --recode tab --out ${FILE}_clean-chr$i --make-bed --geno 0.1 --maf 0.005 --hwe 0.00005
-    echo -e "\n########### plink_1_9 --file ${FILE}_clean-chr$i --out ${FILE}_clean-chr$i --recode vcf --geno 0.1 --maf 0.005 --hwe 0.00005 ###########\n"
-    plink_1_9 --file ${FILE}_clean-chr$i --out ${FILE}_clean-chr$i --recode vcf --geno 0.1 --maf 0.005 --hwe 0.00005
+    echo -e "\n########### plink_1_9 --bfile ${FILE}_semiclean2-updated-chr$i --recode tab --out ${FILE}_clean-chr$i --make-bed --geno $GENO --maf $MAF --hwe 0.00005 ###########\n"
+    plink_1_9 --bfile ${FILE}_semiclean2-updated-chr$i --recode tab --out ${FILE}_clean-chr$i --make-bed --geno $GENO --maf $MAF --hwe 0.00005
+    echo -e "\n########### plink_1_9 --file ${FILE}_clean-chr$i --out ${FILE}_clean-chr$i --recode vcf --geno $GENO --maf $MAF --hwe 0.00005 ###########\n"
+    plink_1_9 --file ${FILE}_clean-chr$i --out ${FILE}_clean-chr$i --recode vcf --geno $GENO --maf $MAF --hwe 0.00005
     echo -e "\n########### vcf-sort ${FILE}_clean-chr$i.vcf | bgzip -c > ${FILE}_clean-chr$i.vcf.gz ###########\n"
     vcf-sort ${FILE}_clean-chr$i.vcf | bgzip -c > ${FILE}_clean-chr$i.vcf.gz
 done
